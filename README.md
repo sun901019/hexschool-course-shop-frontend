@@ -4,6 +4,10 @@ Vue 3 Composition API、Vite、Tailwind CSS 與 Pinia。此頁面瀏覽由 Expre
 
 [課程後端 Repo](https://github.com/sun901019/hexschool-course-shop-backend)
 
+## 線上審核
+
+從 [課程前端](https://hexschool-course-shop-frontend.vercel.app/) 進入商品、會員與購物車。前端以同來源的 `/api/v1` 轉送到獨立的課程 Express 服務；可另由 [後端健康檢查](https://hexschool-course-shop-backend.vercel.app/api/v1/health) 確認 API 連線。管理商品以後端 Repo 的 Postman 集合操作。
+
 ## 本機操作
 
 先依後端 Repo 的 README 啟動 PostgreSQL 和 API。前端另開一個終端機。
