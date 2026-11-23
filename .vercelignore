@@ -1,0 +1,9 @@
+.env
+.env.*
+.runtime/
+node_modules/
+dist/
+test/
+test-results/
+playwright-report/
+*.log
