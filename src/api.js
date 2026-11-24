@@ -30,6 +30,6 @@ export async function request(path, { method = 'GET', body, headers = {}, signal
   return payload;
 }
 
-export function money(amount) {
+export function formatPrice(amount) {
   return 'NT$' + new Intl.NumberFormat('zh-TW').format(amount);
 }

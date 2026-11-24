@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { money, request } from '../api.js';
+import { formatPrice, request } from '../api.js';
 import { useSession } from '../stores/session.js';
 import { useCart } from '../stores/cart.js';
 import ShopArt from '../components/ShopArt.vue';
@@ -15,46 +15,46 @@ const loading = ref(true);
 const error = ref('');
 const success = ref('');
 const addError = ref('');
-const selectedId = ref('');
+const selectedVariantId = ref('');
 const quantity = ref(1);
-const selected = computed(() => product.value?.variants.find(item => item.id === selectedId.value));
-const quantityLimit = computed(() => Math.min(selected.value?.stock || 0, 99));
-let active;
-let attempt;
+const selectedVariant = computed(() => product.value?.variants.find(item => item.id === selectedVariantId.value));
+const quantityLimit = computed(() => Math.min(selectedVariant.value?.stock || 0, 99));
+let activeRequest;
+let addAttempt;
 
-async function load() {
-  active?.abort();
+async function loadProduct() {
+  activeRequest?.abort();
   const controller = new AbortController();
-  active = controller;
+  activeRequest = controller;
   loading.value = true;
   product.value = null;
   error.value = '';
   success.value = '';
   addError.value = '';
-  attempt = undefined;
+  addAttempt = undefined;
   try {
     const result = await request('/products/' + encodeURIComponent(route.params.id), { signal: controller.signal });
-    if (active !== controller) return;
+    if (activeRequest !== controller) return;
     product.value = result.data;
     const options = product.value.variants;
-    selectedId.value = (options.find(item => item.stock > 0) || options[0])?.id || '';
+    selectedVariantId.value = (options.find(item => item.stock > 0) || options[0])?.id || '';
     quantity.value = 1;
   } catch (failure) {
     if (!controller.signal.aborted) error.value = failure.message;
   } finally {
-    if (controller === active) loading.value = false;
+    if (controller === activeRequest) loading.value = false;
   }
 }
 
-watch(() => route.params.id, load, { immediate: true });
-watch(selectedId, () => {
+watch(() => route.params.id, loadProduct, { immediate: true });
+watch(selectedVariantId, () => {
   quantity.value = 1;
   success.value = '';
   addError.value = '';
 });
-onBeforeUnmount(() => active?.abort());
+onBeforeUnmount(() => activeRequest?.abort());
 
-async function addProduct() {
+async function addToCart() {
   success.value = '';
   addError.value = '';
   if (!auth.user) {
@@ -65,18 +65,18 @@ async function addProduct() {
     addError.value = '請使用一般會員試用購物車。';
     return;
   }
-  const variantId = selectedId.value;
+  const variantId = selectedVariantId.value;
   const count = quantity.value;
   if (!Number.isInteger(count) || count < 1 || count > quantityLimit.value) {
     addError.value = '請輸入可購買的數量。';
     return;
   }
-  if (attempt?.variantId !== variantId || attempt.quantity !== count) {
-    attempt = { variantId, quantity: count, key: crypto.randomUUID() };
+  if (addAttempt?.variantId !== variantId || addAttempt.quantity !== count) {
+    addAttempt = { variantId, quantity: count, key: crypto.randomUUID() };
   }
-  if (await cart.add(variantId, count, attempt.key)) {
+  if (await cart.addItem(variantId, count, addAttempt.key)) {
     success.value = '已加入購物車。';
-    attempt = undefined;
+    addAttempt = undefined;
   } else {
     addError.value = cart.error || '購物車正在更新，請再試一次。';
   }
@@ -92,19 +92,19 @@ async function addProduct() {
   <p v-if="loading" class="message" role="status">正在載入商品…</p>
   <div v-else-if="error" class="message">
     <p role="alert">{{ error }}</p>
-    <button type="button" class="button secondary" @click="load">再試一次</button>
+    <button type="button" class="button secondary" @click="loadProduct">再試一次</button>
   </div>
   <article v-else-if="product" class="detail">
     <ShopArt :kind="product.category?.slug" />
     <div class="detail-copy">
       <p class="muted">{{ product.category?.name }}</p>
       <h1>{{ product.name }}</h1>
-      <p v-if="selected" class="detail-price">{{ money(selected.price) }}</p>
+      <p v-if="selectedVariant" class="detail-price">{{ formatPrice(selectedVariant.price) }}</p>
       <p class="description">{{ product.description }}</p>
-      <form class="detail-form" @submit.prevent="addProduct">
+      <form class="detail-form" @submit.prevent="addToCart">
         <label>
           款式
-          <select v-model="selectedId" name="variant" :disabled="cart.busy">
+          <select v-model="selectedVariantId" name="variant" :disabled="cart.busy">
             <option v-for="item in product.variants" :key="item.id" :value="item.id">{{ item.label }}{{ item.stock < 1 ? '（缺貨）' : '' }}</option>
           </select>
         </label>

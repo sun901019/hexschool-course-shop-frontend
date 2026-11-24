@@ -1,5 +1,5 @@
 <script setup>
-import { money } from '../api.js';
+import { formatPrice } from '../api.js';
 import { useSession } from '../stores/session.js';
 import { useCart } from '../stores/cart.js';
 
@@ -23,7 +23,7 @@ const cart = useCart();
   <template v-else>
     <div v-if="cart.error" class="notice">
       <p role="alert">{{ cart.error }}</p>
-      <button class="button secondary" type="button" @click="cart.load()">重新讀取購物車</button>
+      <button class="button secondary" type="button" @click="cart.loadCart()">重新讀取購物車</button>
     </div>
     <p v-if="!cart.loaded && !cart.error" class="message" role="status">正在載入購物車…</p>
     <div v-else-if="cart.loaded && !cart.view.items.length" class="message">
@@ -35,16 +35,16 @@ const cart = useCart();
         <li v-for="item in cart.view.items" :key="item.id" class="cart-row">
           <div class="min-w-0">
             <RouterLink class="cart-name" :to="{ name: 'product', params: { id: item.productId } }">{{ item.productName }}</RouterLink>
-            <p class="small muted">{{ item.variantLabel }} · 單價 {{ money(item.unitPrice) }}</p>
+            <p class="small muted">{{ item.variantLabel }} · 單價 {{ formatPrice(item.unitPrice) }}</p>
           </div>
           <div class="stepper" :aria-label="item.productName + '數量'">
-            <button type="button" :aria-label="'減少' + item.productName + '數量'" :disabled="cart.busy || item.quantity <= 1" @click="cart.setQuantity(item.id, item.quantity - 1)">−</button>
+            <button type="button" :aria-label="'減少' + item.productName + '數量'" :disabled="cart.busy || item.quantity <= 1" @click="cart.updateItemQuantity(item.id, item.quantity - 1)">−</button>
             <span data-testid="cart-quantity">{{ item.quantity }}</span>
-            <button type="button" :aria-label="'增加' + item.productName + '數量'" :disabled="cart.busy || item.quantity >= Math.min(item.stock, 99)" @click="cart.setQuantity(item.id, item.quantity + 1)">＋</button>
+            <button type="button" :aria-label="'增加' + item.productName + '數量'" :disabled="cart.busy || item.quantity >= Math.min(item.stock, 99)" @click="cart.updateItemQuantity(item.id, item.quantity + 1)">＋</button>
           </div>
           <div class="cart-price">
-            <strong>{{ money(item.subtotal) }}</strong>
-            <button type="button" class="plain-link" :aria-label="'移除' + item.productName" :disabled="cart.busy" @click="cart.remove(item.id)">移除</button>
+            <strong>{{ formatPrice(item.subtotal) }}</strong>
+            <button type="button" class="plain-link" :aria-label="'移除' + item.productName" :disabled="cart.busy" @click="cart.removeItem(item.id)">移除</button>
           </div>
         </li>
       </ul>
@@ -52,7 +52,7 @@ const cart = useCart();
         <h2 id="summary-heading">購物車摘要</h2>
         <dl>
           <div><dt>商品數量</dt><dd>{{ cart.view.totals.quantity }} 件</dd></div>
-          <div class="total"><dt>合計</dt><dd>{{ money(cart.view.totals.amount) }}</dd></div>
+          <div class="total"><dt>合計</dt><dd>{{ formatPrice(cart.view.totals.amount) }}</dd></div>
         </dl>
         <p class="muted small">課程示範至購物車。</p>
         <RouterLink class="plain-link" to="/products">繼續逛商品</RouterLink>

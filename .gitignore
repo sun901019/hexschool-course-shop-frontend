@@ -8,3 +8,6 @@ test-results/
 coverage/
 *.log
 .runtime/
+.vercel/
+*.env
+六角課程專用測試帳號.txt

@@ -13,7 +13,7 @@ const loggingOut = ref(false);
 onMounted(() => auth.refresh());
 watch(() => auth.user?.id, () => {
   cart.reset(auth.user?.id ?? null);
-  if (auth.user?.role === 'Member') cart.load();
+  if (auth.user?.role === 'Member') cart.loadCart();
 });
 
 async function logout() {

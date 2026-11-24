@@ -6,16 +6,16 @@ import ProductCard from '../components/ProductCard.vue';
 
 const route = useRoute();
 const router = useRouter();
-const items = ref([]);
+const products = ref([]);
 const categories = ref([]);
 const categoryError = ref('');
 const loading = ref(true);
 const error = ref('');
 const meta = ref({ page: 1, total: 0, totalPages: 0 });
-const q = ref('');
-const category = ref('');
-const actualPage = computed(() => /^\d+$/.test(route.query.page || '') ? Number(route.query.page) : 1);
-let active;
+const searchTerm = ref('');
+const selectedCategoryId = ref('');
+const currentPage = computed(() => /^\d+$/.test(route.query.page || '') ? Number(route.query.page) : 1);
+let activeRequest;
 
 async function loadCategories() {
   categoryError.value = '';
@@ -27,41 +27,41 @@ async function loadCategories() {
 }
 
 async function loadProducts() {
-  active?.abort();
+  activeRequest?.abort();
   const controller = new AbortController();
-  active = controller;
+  activeRequest = controller;
   loading.value = true;
   error.value = '';
-  const params = new URLSearchParams({ limit: '4', page: String(actualPage.value) });
-  if (q.value.trim()) params.set('q', q.value.trim());
-  if (category.value) params.set('category', category.value);
+  const params = new URLSearchParams({ limit: '4', page: String(currentPage.value) });
+  if (searchTerm.value.trim()) params.set('q', searchTerm.value.trim());
+  if (selectedCategoryId.value) params.set('category', selectedCategoryId.value);
   try {
     const result = await request('/products?' + params.toString(), { signal: controller.signal });
-    if (active !== controller) return;
-    items.value = result.data;
+    if (activeRequest !== controller) return;
+    products.value = result.data;
     meta.value = result.meta;
   } catch (failure) {
     if (!controller.signal.aborted) error.value = failure.message;
   } finally {
-    if (active === controller) loading.value = false;
+    if (activeRequest === controller) loading.value = false;
   }
 }
 
-function changeQuery(page, keyword, selectedCategory) {
+function updateProductQuery(page, keyword, categoryId) {
   const query = {};
   if (keyword) query.q = keyword;
-  if (selectedCategory) query.category = selectedCategory;
+  if (categoryId) query.category = categoryId;
   if (page > 1) query.page = String(page);
   router.push({ name: 'products', query });
 }
 
 watch(() => route.fullPath, () => {
-  q.value = typeof route.query.q === 'string' ? route.query.q : '';
-  category.value = typeof route.query.category === 'string' ? route.query.category : '';
+  searchTerm.value = typeof route.query.q === 'string' ? route.query.q : '';
+  selectedCategoryId.value = typeof route.query.category === 'string' ? route.query.category : '';
   loadProducts();
 }, { immediate: true });
 onMounted(loadCategories);
-onBeforeUnmount(() => active?.abort());
+onBeforeUnmount(() => activeRequest?.abort());
 </script>
 
 <template>
@@ -69,21 +69,21 @@ onBeforeUnmount(() => active?.abort());
     <h1>所有商品</h1>
   </header>
 
-  <form class="filters" @submit.prevent="changeQuery(1, q.trim(), category)">
+  <form class="filters" @submit.prevent="updateProductQuery(1, searchTerm.trim(), selectedCategoryId)">
     <label>
       分類
-      <select v-model="category" name="category" @change="changeQuery(1, q.trim(), category)">
+      <select v-model="selectedCategoryId" name="category" @change="updateProductQuery(1, searchTerm.trim(), selectedCategoryId)">
         <option value="">全部分類</option>
         <option v-for="entry in categories" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
       </select>
     </label>
     <label>
       搜尋商品
-      <input v-model="q" name="q" type="search" placeholder="例如：筆記本" maxlength="80">
+      <input v-model="searchTerm" name="q" type="search" placeholder="例如：筆記本" maxlength="80">
     </label>
     <div class="filter-actions">
       <button type="submit" class="button primary">搜尋</button>
-      <button v-if="route.query.category || route.query.q" type="button" class="button secondary" @click="changeQuery(1, '', '')">清除</button>
+      <button v-if="route.query.category || route.query.q" type="button" class="button secondary" @click="updateProductQuery(1, '', '')">清除</button>
     </div>
   </form>
   <div v-if="categoryError" class="notice compact" role="status">
@@ -98,20 +98,20 @@ onBeforeUnmount(() => active?.abort());
       <p role="alert">{{ error }}</p>
       <button type="button" class="button secondary" @click="loadProducts">重新載入商品</button>
     </div>
-    <div v-else-if="!items.length" class="message">
+    <div v-else-if="!products.length" class="message">
       <h3>找不到符合的商品</h3>
       <p>換個關鍵字或清除篩選後再試。</p>
-      <button type="button" class="button secondary" @click="changeQuery(1, '', '')">看所有商品</button>
+      <button type="button" class="button secondary" @click="updateProductQuery(1, '', '')">看所有商品</button>
     </div>
     <template v-else>
       <p class="result-summary" role="status">共 {{ meta.total }} 件商品</p>
       <div class="product-grid">
-        <ProductCard v-for="item in items" :key="item.id" :product="item" />
+        <ProductCard v-for="item in products" :key="item.id" :product="item" />
       </div>
       <nav v-if="meta.totalPages > 1" class="pagination" aria-label="商品分頁">
-        <button type="button" class="button secondary" :disabled="meta.page <= 1" @click="changeQuery(meta.page - 1, route.query.q, route.query.category)">上一頁</button>
+        <button type="button" class="button secondary" :disabled="meta.page <= 1" @click="updateProductQuery(meta.page - 1, route.query.q, route.query.category)">上一頁</button>
         <span aria-current="page">第 {{ meta.page }} / {{ meta.totalPages }} 頁</span>
-        <button type="button" class="button secondary" :disabled="meta.page >= meta.totalPages" @click="changeQuery(meta.page + 1, route.query.q, route.query.category)">下一頁</button>
+        <button type="button" class="button secondary" :disabled="meta.page >= meta.totalPages" @click="updateProductQuery(meta.page + 1, route.query.q, route.query.category)">下一頁</button>
       </nav>
     </template>
   </section>
